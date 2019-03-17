@@ -1,0 +1,4 @@
+curl -X POST \
+	-H 'Content-Type':'application/json' \
+	-d '{"data":[['This is awesome']]}' \
+	http://52.188.218.96/score
