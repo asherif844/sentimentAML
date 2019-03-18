@@ -21,8 +21,7 @@ print('Test a textblob model')
 ############
 
 def textblob_model(text):
-    from textblob import TextBlob
-    a = TextBlob(text).sentiment.polarity
+    a = len(text)
     return a
 ############
 

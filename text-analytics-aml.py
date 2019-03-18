@@ -41,7 +41,7 @@ sample_data = [(1,'This is awesome'), (2, 'This is average'), (3, 'This is awful
 df = pd.DataFrame(sample_data, columns = ['no', 'text'])
 
 import dill
-filename = '/Users/theahmedsherif/conda environments/Microsoft/sentimentAML/outputs/ta_model.pkl'
+filename = 'outputs/ta_model.pkl'
 model = dill.load(open(filename, 'rb'))
 
 scores = []
@@ -80,7 +80,7 @@ with open("ta_env.yml","r") as f:
 
 %%time
  
-image_config = ContainerImage.image_configuration(execution_script="/Users/theahmedsherif/conda environments/Microsoft/sentimentAML/score.py", 
+image_config = ContainerImage.image_configuration(execution_script="score.py", 
                                                   runtime="python", 
                                                   conda_file="ta_env.yml")    
 
@@ -103,3 +103,7 @@ service.wait_for_deployment(show_output=True)
 service.scoring_uri
 
 
+!curl -X POST \
+    -H 'Content-Type':'application/json' \
+    -d 'Hello, you fool, I love you, wanna go on a joy ride'\
+    http://20.42.27.28:80/score
