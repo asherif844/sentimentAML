@@ -1,14 +1,16 @@
  
 import json
-import numpy as np
 import os
 import pickle
+
 import dill
+import numpy as np
+
+from azureml.core.model import Model
 from sklearn.externals import joblib
 from sklearn.linear_model import LogisticRegression
- 
-from azureml.core.model import Model
- 
+
+
 def init():
     global model
     model_path = Model.get_model_path('ta_model')
@@ -17,4 +19,5 @@ def init():
 def run(raw_data):
     data = np.array(json.loads(raw_data)['data'])
     y_hat = model(data)
-    return json.dumps(y_hat.tolist())
+    return str(y_hat)
+    # this is a test
