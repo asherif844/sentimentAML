@@ -17,7 +17,7 @@ def init():
     model = dill.load(open(model_path, 'rb'))
  
 def run(raw_data):
-    data = np.array(json.loads(raw_data)['data'])
+    data = raw_data
     y_hat = model(data)
     return str(y_hat)
-    # this is a test
+
