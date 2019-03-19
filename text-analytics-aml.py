@@ -24,9 +24,9 @@ print("Azure ML SDK Version: ", azureml.core.VERSION)
 sub_id = 'ba3edd26-e2b1-4cc5-a19e-5bd21d7e9f5d'
 
 
-ws = Workspace.create(name='text-analytics',
+ws = Workspace.create(name='text-analytics2',
                       subscription_id=sub_id, 
-                      resource_group='taRG3',
+                      resource_group='taRG3ss',
                       create_resource_group=True,
                       location='eastus'
                      )

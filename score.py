@@ -5,10 +5,10 @@ import pickle
 
 import dill
 import numpy as np
-
 from azureml.core.model import Model
 from sklearn.externals import joblib
 from sklearn.linear_model import LogisticRegression
+from textblob import TextBlob
 
 
 def init():
@@ -20,4 +20,3 @@ def run(raw_data):
     data = raw_data
     y_hat = model(data)
     return str(y_hat)
-

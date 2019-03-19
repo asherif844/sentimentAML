@@ -8,6 +8,7 @@ import pandas as pd
 from azureml.core import Run
 # from textblob import TextBlob
 from statistics import mean
+from textblob import TextBlob
 
 # let user feed in 2 parameters, the location of the data files (from datastore), and the regularization rate of the logistic regression model
 
@@ -21,10 +22,11 @@ print('Test a textblob model')
 ############
 
 def textblob_model(text):
-    a = len(text)
+    a = TextBlob(text).sentiment.polarity
     return a
 ############
 
+textblob_model('This is awesome')
 
 # calculate accuracy on the prediction
 scores = []
