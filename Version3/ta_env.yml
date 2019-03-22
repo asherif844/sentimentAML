@@ -14,3 +14,4 @@ dependencies:
     # Required packages for AzureML execution, history, and data preparation.
   - azureml-defaults
 - scikit-learn
+- dill

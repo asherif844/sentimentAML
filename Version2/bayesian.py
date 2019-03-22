@@ -34,7 +34,7 @@ print("You are currently using version",
 # use this cell if you want to use an exisiting workspace
 #################################################
 subscription_id = 'ba3edd26-e2b1-4cc5-a19e-5bd21d7e9f5d'
-resource_group = 'amlservicesbox'
+resource_group = 'amlservicesbox2'
 workspace_name = 'bayesian'
 workspace_region = 'eastus'
 
@@ -86,7 +86,8 @@ print(ws.name, ws.location, ws.resource_group, sep = '\n')
 # choose a name for the run history container in the workspace
 experiment_name = 'bayesianClassification'
 # project folder
-project_folder = './bayesianClassification'    
+project_folder = './Version2/bayesianClassification'    
+os.makedirs(project_folder, exist_ok=True)
 
 output = {}
 output['SDK version'] = azureml.core.VERSION
@@ -98,91 +99,32 @@ output['Project Directory'] = project_folder
 pd.set_option('display.max_colwidth', -1)
 outputDf = pd.DataFrame(data = output, index = [''])
 outputDf.T
-outputDf.to_csv('output_credentials.csv')
-
-############################################
-#       Train the Model
-############################################
-
-df = pd.read_csv('Version2/data/train.tsv', sep= '\t')
-df.head()
-df['Phrase'].apply(lambda x: Textblob(x).sentiment.polarity)
-
-
-df.head()
-
-cv = CountVectorizer(binary=True)
-
-cv.fit(df['Phrase'])
-features = cv.transform(df['Phrase'])
-data_labels = df['Sentiment'].values
-print(features.shape, data_labels.shape)
-
-
-x_train,x_test, y_train, y_test = train_test_split(features, data_labels, test_size=0.2, random_state = 12345)
-lr = LogisticRegression()
-
-lr.fit(x_train, y_train)
-
-y_predict = lr.predict(x_test)
-
-
-acc = accuracy_score(y_predict, y_test)
-
-print(f'accuracy score is {acc}')
-
-
-
-############################################
-#       Serialize and Test the model
-############################################
-
-experiment_name = 'sentimentClassification'
-exp = Experiment(workspace=ws, name=experiment_name)
-
-print(ws.compute_targets, ws.experiments)
-
-data_folder = os.path.join(os.getcwd(), 'Version2/output')
-data_folder
-
-os.makedirs(data_folder, exist_ok=True)
-
-filename = 'Version2/output/sentiment_model.pkl'
-joblib.dump(lr, filename)
-
-tempModel = joblib.load(filename)
-
-tempModel.predict(features[0])
-# features[0].shape
-# features[2]
-data = 'gain the unconditional love she seeks'
-data_array = np.array([data])
-type(data_array)
-
-
-
-vec_data = vectorizer.fit_transform(data_array)
-type(vec_data)
-
-from scipy import sparse
-
-range(0,100)
-zeros = np.zeros([1,15234], dtype=int)
-zeros.shape
-values_ = sparse.hstack((vec_data,zeros))
-
-
-
-tempModel.predict(values_)[0]
-
+outputDf.to_csv(project_folder+'/output_credentials.csv')
 
 
 ############################################
 # Incorporate metrics into Azure
 ############################################
 
+# create an azure ml experiment
+exp = Experiment(workspace = ws, name = experiment_name)
+
 run = exp.start_logging()                   
 run.log("Experiment start time", str(datetime.datetime.now()))
+
+a = ['This is awesome', 'This is mediocre', 'This is awful']
+df = pd.DataFrame(a, columns=['phrase'])
+df['sentiment'] = df['phrase'].apply(lambda x: TextBlob(x).sentiment.polarity)
+
+accuracy_collection = []
+for i in df['sentiment']:
+    accuracy_collection.append(i)
+
+from statistics import mean
+acc = mean(accuracy_collection)
+
+
+
 run.log('accuracy score:', acc)
 
 run.log("Experiment end time", str(datetime.datetime.now()))
@@ -191,77 +133,84 @@ run.complete()
 
 print(run.get_portal_url())
 
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+X, y = load_iris(return_X_y=True)
+lr = LogisticRegression(random_state=0, solver='lbfgs',
+                          multi_class='multinomial').fit(X, y)
+lr.predict(X[:2, :])
+
+# freeze the model for registration
+filename = '/Users/theahmedsherif/conda environments/Microsoft/sentimentAML/Version2/output/lrmodel.pkl'
+joblib.dump(lr, filename)
+
+loaded_model = joblib.load(filename)
+loaded_model.predict(X[:2,:])
+
 ############################
 # Register the model in Azure
 ############################
 
-model = Model.register(model_path = "Version2/output/sentiment_model.pkl",
-                       model_name = "baysSentModel",
+model = Model.register(model_path = filename,
+                       model_name = "textblob",
                        tags = {"key": "2"},
                        description = "Sentiment Prediction",
                        workspace = ws)
 
+
+
 aciconfig = AciWebservice.deploy_configuration(cpu_cores=1, 
                                                memory_gb=1, 
-                                               tags={"data": "sentiment",  "method" : "bayesianM"}, 
+                                               tags={"data": "sentiment",  "method" : "textblob"}, 
                                                description='Predict Sentiment Score')
 
 
-salenv = CondaDependencies()
-salenv.add_conda_package("scikit-learn")
+textblobenv = CondaDependencies()
+textblobenv.add_conda_package("scikit-learn")
+# textblobenv.add_conda_package("textblob")
+# textblobenv.add_conda_package("pickle")
+# textblobenv.add_conda_package("dill")
 
-with open("salenv.yml","w") as f:
-    f.write(salenv.serialize_to_string())
-with open("salenv.yml","r") as f:
+with open("textblobenv.yml","w") as f:
+    f.write(textblobenv.serialize_to_string())
+with open("textblobenv.yml","r") as f:
     print(f.read())
 
-
-############################
-# create azure scoring file score.py
-############################
-
+#############################
 %%writefile score.py
+
 import json
 import numpy as np
 import os
-import pickle
 from sklearn.externals import joblib
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
-from scipy import sparse
+
+from textblob import TextBlob
 
 from azureml.core.model import Model
 
 def init():
-    global model
-    # retrieve the path to the model file using the model name
-    model_path = Model.get_model_path('baysSentModel')
-    model = joblib.load(model_path)
+    model = 1
 
 def run(raw_data):
-    data = np.array(json.loads(raw_data)['data'])
-    # make prediction
-    y_hat = model.predict(data)
-    return json.dumps(y_hat.tolist())
+    data = raw_data
+    sentiment = TextBlob(data).sentiment.polarity
+    return str(sentiment)
+#############################
 
-############################
-# end scoring
-############################
 
-print(y_test.shape, y_predict.shape)
-f1 = vectorizer.fit_transform(df['Phrase'])
-f1.shape
+%%time
+image_config = ContainerImage.image_configuration(execution_script="score.py", 
+                                                  runtime="python", 
+                                                  conda_file="textblobenv.yml")
 
-f2 = f1.toarray()
-f2[0].shape
 
-tempModel.predict([f2[100]])
+service = Webservice.deploy_from_model(workspace=ws,
+                                       name='textblob-pred',
+                                       deployment_config=aciconfig,
+                                       models=[model],
+                                       image_config=image_config)
 
-f2[0]
+service.wait_for_deployment(show_output=True)
 
-data = ['this is awesome']
-data2 = pd.DataFrame((data))
-f3 = vectorizer.fit_transform(np.array(data))
-f3.reshape(16947)
-
-pd.DataFrame(vectorizer.fit_transform(df[['Phrase']]))
